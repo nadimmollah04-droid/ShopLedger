@@ -240,8 +240,11 @@
     margin: 0 auto 20px;
     position:relative;
   }
-  .bill-shop-name{ font-family:'Fraunces', serif; font-weight:700; font-size:21px; margin:0 0 2px;}
-  .bill-shop-meta{ font-size:12px; color: var(--ink-soft); line-height:1.5; margin-bottom:14px;}
+  .bill-shop-name{ font-family:'Fraunces', serif; font-weight:700; font-size:21px; margin:0 0 2px; text-align:center; }
+  #pb-logo{ display:block; }
+  #printable-bill.receipt-mode #pb-logo{ max-height:40px; max-width:100%; }
+  #printable-bill.receipt-mode.receipt-80 #pb-logo{ max-height:55px; }
+  .bill-shop-meta{ font-size:12px; color: var(--ink-soft); line-height:1.5; margin-bottom:14px; text-align:center; }
   .bill-meta-row{
     display:flex; justify-content:space-between;
     font-family:'IBM Plex Mono', monospace;
@@ -271,6 +274,8 @@
   }
   .bill-actions{ display:flex; gap:10px; justify-content:center; margin-bottom:30px; }
   .past-bills-list{ max-height:340px; overflow:auto; }
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .table-scroll table, .past-bills-list table{ min-width:560px; }
 
   /* Receipt mode — thermal roll layout, 58mm (2-inch) or 80mm (3-inch) */
   .receipt-mode-row{
@@ -390,11 +395,32 @@
 
   @media (max-width: 900px){
     .app{ flex-direction:column; }
-    .rail{ flex-direction:row; overflow-x:auto; width:100%; padding:16px; }
+    .rail{ flex-direction:row; overflow-x:auto; width:100%; padding:14px 14px 10px; gap:8px; -webkit-overflow-scrolling:touch; }
     .brand{ display:none; }
-    .main{ margin:0 16px 16px; padding:22px; }
+    .main{ margin:0 12px 12px; padding:20px 18px; }
     .grid, .grid.g4, .grid.g3{ grid-template-columns: 1fr 1fr; }
     .kpi-row, .insight-grid{ grid-template-columns: 1fr; }
+    .tab-btn{ flex-shrink:0; white-space:nowrap; padding:11px 16px; }
+    .logout-btn{ flex-shrink:0; border-top:none; border-left:1px solid var(--rule); margin:0 0 0 4px; padding:11px 14px; }
+  }
+
+  @media (max-width: 600px){
+    .main{ margin:0 8px 8px; padding:16px 14px; border-radius:8px; }
+    h1.page-title{ font-size:22px; }
+    .page-sub{ margin-bottom:20px; }
+    .card{ padding:16px 16px; margin-bottom:16px; }
+    .grid, .grid.g4, .grid.g3{ grid-template-columns: 1fr; gap:12px; }
+    button.btn{ padding:12px 18px; font-size:14px; }
+    .bill-actions{ flex-direction:column; }
+    .bill-actions button{ width:100%; }
+    .receipt-mode-row{ flex-direction:column; gap:8px; }
+    #print-mode-toggle{ max-width:100%; width:100%; }
+    .bill-total-line{ flex-wrap:wrap; }
+    .bill-total-line .amount{ font-size:22px; }
+    #printable-bill{ padding:20px 18px; }
+    .login-card{ padding:28px 24px; }
+    .kpi .kpi-value{ font-size:22px; }
+    .row-actions button{ padding:4px 0; font-size:13.5px; }
   }
 
   /* Login gate */
@@ -542,12 +568,14 @@
         <div class="search-bar">
           <input id="inv-search" placeholder="Search by code or description...">
         </div>
+        <div class="table-scroll">
         <table>
           <thead>
             <tr><th>Code</th><th>Description</th><th>Qty</th><th>Buy ₹</th><th>Sell ₹</th><th>Stock value ₹</th><th></th></tr>
           </thead>
           <tbody id="product-tbody"></tbody>
         </table>
+        </div>
       </div>
     </section>
 
@@ -562,6 +590,29 @@
           <div class="field"><label>Shop name</label><input id="s-name" placeholder="Your shop name"></div>
           <div class="field" style="grid-column: span 2;"><label>Address</label><input id="s-address" placeholder="Shop address"></div>
           <div class="field"><label>Phone</label><input id="s-phone" placeholder="Phone number"></div>
+        </div>
+        <div class="grid g4" style="margin-top:14px;">
+          <div class="field" style="grid-column: span 3;">
+            <label>Shop logo URL <span style="text-transform:none; font-weight:400;">(recommended — works identically on every device)</span></label>
+            <input type="text" id="s-logo-url-input" placeholder="e.g. logo.png (if hosted next to this file) or https://.../logo.png">
+          </div>
+        </div>
+        <p class="caption" style="margin:8px 0 0;">
+          This is the more reliable option if you're using this on multiple devices or via GitHub Pages / Google Sheet sync — it stores a short link instead of the image itself, so it works everywhere the same way.
+        </p>
+        <div class="grid g4" style="margin-top:14px;">
+          <div class="field" style="grid-column: span 2;">
+            <label>Or upload a logo <span style="text-transform:none; font-weight:400;">(saved on this device only)</span></label>
+            <input type="file" accept="image/*" id="s-logo-input">
+          </div>
+          <div class="field" style="grid-column: span 2;">
+            <label>Preview</label>
+            <div id="s-logo-preview-wrap" style="display:none; align-items:center; gap:10px;">
+              <img id="s-logo-preview" alt="Shop logo preview" style="max-height:48px; max-width:140px; border:1px solid var(--rule); border-radius:6px; padding:4px; background:#fff;">
+              <button type="button" class="btn secondary small" id="s-logo-remove-btn">Remove</button>
+            </div>
+            <div id="s-logo-empty-hint" style="font-size:12px; color:var(--ink-soft); padding-top:9px;">No logo uploaded yet.</div>
+          </div>
         </div>
         <div style="margin-top:12px;">
           <button class="btn secondary small" id="s-save-btn">Save shop details</button>
@@ -583,12 +634,14 @@
           <div class="field" id="cash-field-change"><label>Change to return</label><input type="text" id="bill-change-return" placeholder="—" readonly></div>
         </div>
         <datalist id="product-datalist"></datalist>
+        <div class="table-scroll">
         <table class="bill-items-table">
           <thead>
             <tr><th style="width:22%">Product code / name</th><th>Description</th><th style="width:10%">Qty</th><th style="width:12%">Price ₹</th><th style="width:12%">Line total ₹</th><th></th></tr>
           </thead>
           <tbody id="bill-items-tbody"></tbody>
         </table>
+        </div>
         <div style="margin-top:12px;">
           <button class="btn secondary small" id="add-bill-row">+ Add item</button>
         </div>
@@ -603,6 +656,7 @@
 
       <div id="printable-bill-wrap" style="display:none;">
         <div id="printable-bill">
+          <img id="pb-logo" alt="Shop logo" style="display:none; max-height:60px; max-width:200px; margin:0 auto 10px;">
           <div class="bill-shop-name" id="pb-shop-name">Shop name</div>
           <div class="bill-shop-meta" id="pb-shop-meta"></div>
           <div class="bill-meta-row">
@@ -689,10 +743,12 @@
 
       <div class="card">
         <h2>Month-wise summary</h2>
+        <div class="table-scroll">
         <table>
           <thead><tr><th>Month</th><th>Cost of goods sold ₹</th><th>Sales ₹</th><th>Profit ₹</th></tr></thead>
           <tbody id="monthly-tbody"></tbody>
         </table>
+        </div>
       </div>
     </section>
 
@@ -782,7 +838,7 @@
       return {code: p.code, description: p.description, quantity: Number(p.quantity), buyingPrice: Number(p.buyingPrice), sellingPrice: Number(p.sellingPrice)};
     }),
     bills: bills,
-    shopDetails: {name: settings.ShopName || '', address: settings.ShopAddress || '', phone: settings.ShopPhone || ''},
+    shopDetails: {name: settings.ShopName || '', address: settings.ShopAddress || '', phone: settings.ShopPhone || '', logoUrl: settings.ShopLogoUrl || ''},
     nextBillNo: Number(settings.NextBillNo || 1001)
   };
 
@@ -812,6 +868,7 @@ function doPost(e) {
     ShopName: data.shopDetails ? data.shopDetails.name : '',
     ShopAddress: data.shopDetails ? data.shopDetails.address : '',
     ShopPhone: data.shopDetails ? data.shopDetails.phone : '',
+    ShopLogoUrl: data.shopDetails ? data.shopDetails.logoUrl : '',
     NextBillNo: data.nextBillNo || 1001
   });
 
@@ -878,13 +935,20 @@ function writeSettings(ss, obj) {
    fill these in before publishing so every device works immediately
    with no per-device setup. Leave webAppUrl blank to use this only
    inside Claude with manual setup via the Settings tab.
+
+   For the shop logo to look identical on every device, host the image
+   file itself (e.g. add logo.png to the same GitHub repo) and put its
+   URL here — a small logo.png sitting next to index.html can just be
+   referenced as 'logo.png'. This also syncs through the Google Sheet
+   Settings tab if you set it there instead (Settings → Shop logo URL).
    ================================================================ */
 const DEFAULT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxNkcTtThj71DNsER1LJTPwUmFF927ChP3LJXCnQBa7yyAVujsoWUGQ-OFGxS6Barq-/exec';           // paste your Apps Script /exec URL here
 const DEFAULT_EMPLOYEE_PASSWORD = 'billing123';
 const DEFAULT_ADMIN_PASSWORD = 'admin123';
+const DEFAULT_SHOP_LOGO_URL = 'logo.png';        // e.g. 'logo.png' if it sits next to this file, or a full https:// URL
 /* ================================================================ */
 
-let DATA = { shopDetails: { name:'', address:'', phone:'' }, products: [], bills: [], nextBillNo: 1001, auth: { employeePassword: DEFAULT_EMPLOYEE_PASSWORD, adminPassword: DEFAULT_ADMIN_PASSWORD }, syncConfig: { webAppUrl: DEFAULT_WEBAPP_URL, autoSync: !!DEFAULT_WEBAPP_URL, lastSyncedAt: null }, printPrefs: { mode: 'standard' } };
+let DATA = { shopDetails: { name:'', address:'', phone:'', logo:'', logoUrl: DEFAULT_SHOP_LOGO_URL }, products: [], bills: [], nextBillNo: 1001, auth: { employeePassword: DEFAULT_EMPLOYEE_PASSWORD, adminPassword: DEFAULT_ADMIN_PASSWORD }, syncConfig: { webAppUrl: DEFAULT_WEBAPP_URL, autoSync: !!DEFAULT_WEBAPP_URL, lastSyncedAt: null }, printPrefs: { mode: 'standard' } };
 let currentBillRows = []; // {code, qty}
 let loaded = false;
 let currentRole = null;
@@ -1141,19 +1205,79 @@ function escapeAttr(s){ return String(s).replace(/'/g, "\\'"); }
 
 /* ---------- Billing ---------- */
 document.getElementById('s-save-btn').addEventListener('click', ()=>{
-  DATA.shopDetails = {
-    name: document.getElementById('s-name').value.trim(),
-    address: document.getElementById('s-address').value.trim(),
-    phone: document.getElementById('s-phone').value.trim()
-  };
+  DATA.shopDetails.name = document.getElementById('s-name').value.trim();
+  DATA.shopDetails.address = document.getElementById('s-address').value.trim();
+  DATA.shopDetails.phone = document.getElementById('s-phone').value.trim();
+  DATA.shopDetails.logoUrl = document.getElementById('s-logo-url-input').value.trim();
   saveData();
+  renderLogoPreview();
   showToast('Shop details saved');
 });
+
+function effectiveLogoSrc(){
+  return (DATA.shopDetails.logoUrl && DATA.shopDetails.logoUrl.trim()) || DATA.shopDetails.logo || '';
+}
+
+document.getElementById('s-logo-input').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){
+    showToast('Please choose an image file');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const img = new Image();
+    img.onload = function(){
+      const maxDim = 260;
+      let w = img.width, h = img.height;
+      if(w >= h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
+      else if(h > w && h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h); // flatten transparency so it prints cleanly
+      ctx.drawImage(img, 0, 0, w, h);
+      DATA.shopDetails.logo = canvas.toDataURL('image/jpeg', 0.85);
+      saveData();
+      renderLogoPreview();
+      showToast('Logo saved on this device' + (DATA.shopDetails.logoUrl ? ' (a logo URL is set above and will be used instead)' : ''));
+    };
+    img.onerror = function(){ showToast('Could not read that image — try a different file'); };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('s-logo-remove-btn').addEventListener('click', ()=>{
+  DATA.shopDetails.logo = '';
+  saveData();
+  renderLogoPreview();
+  document.getElementById('s-logo-input').value = '';
+  showToast('Uploaded logo removed');
+});
+
+function renderLogoPreview(){
+  const wrap = document.getElementById('s-logo-preview-wrap');
+  const hint = document.getElementById('s-logo-empty-hint');
+  const src = effectiveLogoSrc();
+  if(src){
+    document.getElementById('s-logo-preview').src = src;
+    wrap.style.display = 'flex';
+    hint.style.display = 'none';
+  } else {
+    wrap.style.display = 'none';
+    hint.style.display = 'block';
+  }
+}
 
 function renderShopDetailsForm(){
   document.getElementById('s-name').value = DATA.shopDetails.name || '';
   document.getElementById('s-address').value = DATA.shopDetails.address || '';
   document.getElementById('s-phone').value = DATA.shopDetails.phone || '';
+  document.getElementById('s-logo-url-input').value = DATA.shopDetails.logoUrl || '';
+  renderLogoPreview();
 }
 
 function addBillRow(){
@@ -1334,6 +1458,14 @@ document.getElementById('generate-bill-btn').addEventListener('click', ()=>{
 });
 
 function showPrintableBill(bill){
+  const logoEl = document.getElementById('pb-logo');
+  const logoSrc = effectiveLogoSrc();
+  if(logoSrc){
+    logoEl.src = logoSrc;
+    logoEl.style.display = 'block';
+  } else {
+    logoEl.style.display = 'none';
+  }
   document.getElementById('pb-shop-name').textContent = DATA.shopDetails.name || 'Your shop name';
   const metaParts = [DATA.shopDetails.address, DATA.shopDetails.phone ? 'Ph: '+DATA.shopDetails.phone : ''].filter(Boolean);
   document.getElementById('pb-shop-meta').textContent = metaParts.join(' · ');
@@ -1605,7 +1737,7 @@ async function pullFromSheet(silent){
     const data = await res.json();
     DATA.products = data.products || [];
     DATA.bills = data.bills || [];
-    DATA.shopDetails = data.shopDetails || DATA.shopDetails;
+    DATA.shopDetails = Object.assign({}, DATA.shopDetails, data.shopDetails || {});
     DATA.nextBillNo = data.nextBillNo || DATA.nextBillNo;
     DATA.syncConfig.lastSyncedAt = new Date().toISOString();
     suppressAutoSync = true;
