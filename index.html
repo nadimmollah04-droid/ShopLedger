@@ -336,6 +336,15 @@
 
   /* Insights */
   .kpi-row{ display:grid; grid-template-columns: repeat(3,1fr); gap:16px; margin-bottom:26px; }
+  .kpi-row-4{ grid-template-columns: repeat(4,1fr); }
+  .bar-list{ display:flex; flex-direction:column; gap:7px; }
+  .bar-row{ display:flex; align-items:center; gap:10px; font-size:12px; }
+  .bar-row .bar-label{ width:78px; flex-shrink:0; font-family:'IBM Plex Mono', monospace; color:var(--ink-soft); }
+  .bar-row .bar-track{ flex:1; background:var(--paper); border-radius:4px; height:14px; overflow:hidden; }
+  .bar-row .bar-fill{ height:100%; background:var(--green); border-radius:4px; min-width:2px; }
+  .bar-row.online .bar-fill{ background:var(--gold); }
+  .bar-row .bar-value{ width:78px; text-align:right; font-family:'IBM Plex Mono', monospace; font-weight:600; flex-shrink:0; }
+  #daily-sales-bars{ max-height:360px; overflow-y:auto; padding-right:4px; }
   .kpi{
     background: var(--paper-card);
     border:1px solid var(--rule);
@@ -721,6 +730,34 @@
         <div class="kpi profit"><div class="kpi-label">Total profit, all time</div><div class="kpi-value" id="kpi-total-profit">₹0</div></div>
       </div>
 
+      <div class="kpi-row kpi-row-4">
+        <div class="kpi"><div class="kpi-label">Avg bill value</div><div class="kpi-value" id="kpi-avg-bill">₹0</div></div>
+        <div class="kpi"><div class="kpi-label">Avg items per bill</div><div class="kpi-value" id="kpi-avg-items">0</div></div>
+        <div class="kpi"><div class="kpi-label">Overall margin</div><div class="kpi-value" id="kpi-margin">0%</div></div>
+        <div class="kpi"><div class="kpi-label">Stock turnover (approx.)</div><div class="kpi-value" id="kpi-turnover">0×</div></div>
+      </div>
+
+      <div class="insight-grid">
+        <div class="insight-card card">
+          <h3>Payment split</h3>
+          <div class="caption">Share of sales collected as cash vs online, all time</div>
+          <div class="bar-list" id="payment-split-bars"></div>
+        </div>
+        <div class="insight-card card">
+          <h3>Sales by day of week</h3>
+          <div class="caption">Which days tend to bring in the most sales</div>
+          <div class="bar-list" id="weekday-bars"></div>
+        </div>
+      </div>
+
+      <div class="insight-grid">
+        <div class="insight-card card" style="grid-column: 1 / -1;">
+          <h3>Daily sales — last 30 days</h3>
+          <div class="caption">Day-by-day sales total, most recent first</div>
+          <div class="bar-list" id="daily-sales-bars"></div>
+        </div>
+      </div>
+
       <div class="insight-grid">
         <div class="insight-card card">
           <h3>Top 10 fast-moving items</h3>
@@ -741,14 +778,56 @@
         </div>
       </div>
 
+      <div class="insight-grid">
+        <div class="insight-card card">
+          <h3>Low stock</h3>
+          <div class="caption">Quantity at or below <span id="low-stock-threshold-label">3</span> — worth reordering soon</div>
+          <ul class="rank-list" id="list-low-stock"></ul>
+        </div>
+        <div class="insight-card card">
+          <h3>Out of stock</h3>
+          <div class="caption">Zero quantity remaining right now</div>
+          <ul class="rank-list" id="list-out-of-stock"></ul>
+        </div>
+      </div>
+
+      <div class="insight-grid">
+        <div class="insight-card card" style="grid-column: 1 / -1;">
+          <h3>Dead stock</h3>
+          <div class="caption" id="dead-stock-caption">Products with no sale in the last 60+ days (or never sold), by value tied up</div>
+          <ul class="rank-list" id="list-dead-stock"></ul>
+        </div>
+      </div>
+
+      <div class="insight-grid">
+        <div class="insight-card card" style="grid-column: 1 / -1;">
+          <h3>Stock running out soonest</h3>
+          <div class="caption">Estimated days of stock left, based on average daily sales pace — only shown for items with a sales history</div>
+          <ul class="rank-list" id="list-stock-runway"></ul>
+        </div>
+      </div>
+
       <div class="card">
         <h2>Month-wise summary</h2>
         <div class="table-scroll">
         <table>
-          <thead><tr><th>Month</th><th>Cost of goods sold ₹</th><th>Sales ₹</th><th>Profit ₹</th></tr></thead>
+          <thead><tr><th>Month</th><th>Bills</th><th>Cost of goods sold ₹</th><th>Sales ₹</th><th>Profit ₹</th></tr></thead>
           <tbody id="monthly-tbody"></tbody>
         </table>
         </div>
+      </div>
+
+      <div class="card">
+        <h2>Customer analysis</h2>
+        <p class="caption" style="margin-bottom:16px;">Based on the customer mobile number entered on each bill — bills left blank aren't counted here.</p>
+        <div class="kpi-row" style="margin-bottom:20px;">
+          <div class="kpi"><div class="kpi-label">Distinct customers</div><div class="kpi-value" id="kpi-distinct-customers">0</div></div>
+          <div class="kpi"><div class="kpi-label">Repeat customers</div><div class="kpi-value" id="kpi-repeat-customers">0</div></div>
+          <div class="kpi"><div class="kpi-label">Repeat rate</div><div class="kpi-value" id="kpi-repeat-rate">0%</div></div>
+        </div>
+        <h3 style="font-family:'Fraunces', serif; font-size:15px; font-weight:600; margin:0 0 3px;">Top 10 customers by spend</h3>
+        <div class="caption" style="margin-bottom:12px;">Ranked by total amount billed to that mobile number</div>
+        <ul class="rank-list" id="list-top-customers"></ul>
       </div>
     </section>
 
@@ -946,6 +1025,8 @@ const DEFAULT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxNkcTtThj71
 const DEFAULT_EMPLOYEE_PASSWORD = 'billing123';
 const DEFAULT_ADMIN_PASSWORD = 'admin123';
 const DEFAULT_SHOP_LOGO_URL = 'logo.png';        // e.g. 'logo.png' if it sits next to this file, or a full https:// URL
+const LOW_STOCK_THRESHOLD = 3;           // quantity at or below this is flagged as low stock
+const DEAD_STOCK_DAYS = 60;              // days with no sale before a product is flagged as dead stock
 /* ================================================================ */
 
 let DATA = { shopDetails: { name:'', address:'', phone:'', logo:'', logoUrl: DEFAULT_SHOP_LOGO_URL }, products: [], bills: [], nextBillNo: 1001, auth: { employeePassword: DEFAULT_EMPLOYEE_PASSWORD, adminPassword: DEFAULT_ADMIN_PASSWORD }, syncConfig: { webAppUrl: DEFAULT_WEBAPP_URL, autoSync: !!DEFAULT_WEBAPP_URL, lastSyncedAt: null }, printPrefs: { mode: 'standard' } };
@@ -1187,7 +1268,7 @@ function renderProducts(){
     tr.innerHTML = `
       <td>${escapeHtml(p.code)}</td>
       <td class="desc">${escapeHtml(p.description)}</td>
-      <td class="${p.quantity<=3 ? 'stock-low':''}">${p.quantity}</td>
+      <td class="${p.quantity<=LOW_STOCK_THRESHOLD ? 'stock-low':''}">${p.quantity}</td>
       <td>${p.buyingPrice.toFixed(2)}</td>
       <td>${p.sellingPrice.toFixed(2)}</td>
       <td>${stockValue.toFixed(2)}</td>
@@ -1579,32 +1660,89 @@ window.removeBillRow = removeBillRow;
 /* ---------- Insights ---------- */
 function renderInsights(){
   const invValue = DATA.products.reduce((sum,p)=> sum + p.quantity*p.buyingPrice, 0);
-  let totalSales = 0, totalCost = 0;
-  const volumeMap = {}, profitMap = {}, nameMap = {};
-  const monthly = {}; // key: YYYY-MM -> {cost, sales}
+  let totalSales = 0, totalCost = 0, totalItemsQty = 0;
+  const volumeMap = {}, profitMap = {}, nameMap = {}, lastSaleMap = {};
+  const monthly = {}; // key: YYYY-MM -> {cost, sales, bills}
+  const paymentTotals = {cash:0, online:0};
+  const weekdayTotals = [0,0,0,0,0,0,0]; // Sun..Sat
+  const dailyTotals = {}; // 'YYYY-MM-DD' -> sales
+  const customerMap = {}; // mobile -> {spend, visits}
+  let firstBillDate = null, lastBillDate = null;
 
   DATA.bills.forEach(bill=>{
     totalSales += bill.total;
+    const billDate = new Date(bill.timestamp);
+    if(!firstBillDate || billDate < firstBillDate) firstBillDate = billDate;
+    if(!lastBillDate || billDate > lastBillDate) lastBillDate = billDate;
+
     const monthKey = bill.timestamp.slice(0,7);
-    if(!monthly[monthKey]) monthly[monthKey] = {cost:0, sales:0};
+    if(!monthly[monthKey]) monthly[monthKey] = {cost:0, sales:0, bills:0};
     monthly[monthKey].sales += bill.total;
+    monthly[monthKey].bills += 1;
+
+    const dateKey = bill.timestamp.slice(0,10);
+    dailyTotals[dateKey] = (dailyTotals[dateKey]||0) + bill.total;
+    weekdayTotals[billDate.getDay()] += bill.total;
+
+    const mode = (bill.paymentMode === 'online') ? 'online' : 'cash';
+    paymentTotals[mode] += bill.total;
+
+    const mobile = (bill.customerMobile||'').trim();
+    if(mobile){
+      if(!customerMap[mobile]) customerMap[mobile] = {spend:0, visits:0};
+      customerMap[mobile].spend += bill.total;
+      customerMap[mobile].visits += 1;
+    }
 
     bill.items.forEach(it=>{
       const lineCost = it.buyingPrice * it.qty;
       const lineSales = it.sellingPrice * it.qty;
       totalCost += lineCost;
+      totalItemsQty += it.qty;
       monthly[monthKey].cost += lineCost;
 
       volumeMap[it.code] = (volumeMap[it.code]||0) + it.qty;
       profitMap[it.code] = (profitMap[it.code]||0) + (lineSales - lineCost);
       nameMap[it.code] = it.description;
+      if(!lastSaleMap[it.code] || billDate > lastSaleMap[it.code]) lastSaleMap[it.code] = billDate;
     });
   });
   const totalProfit = totalSales - totalCost;
+  const billCount = DATA.bills.length;
 
   document.getElementById('kpi-inv-value').textContent = fmt(invValue);
   document.getElementById('kpi-total-sales').textContent = fmt(totalSales);
   document.getElementById('kpi-total-profit').textContent = fmt(totalProfit);
+  document.getElementById('kpi-avg-bill').textContent = fmt(billCount ? totalSales/billCount : 0);
+  document.getElementById('kpi-avg-items').textContent = (billCount ? (totalItemsQty/billCount) : 0).toFixed(1);
+  document.getElementById('kpi-margin').textContent = (totalSales ? (totalProfit/totalSales*100) : 0).toFixed(1) + '%';
+  document.getElementById('kpi-turnover').textContent = (invValue ? (totalCost/invValue) : 0).toFixed(2) + '×';
+  document.getElementById('low-stock-threshold-label').textContent = LOW_STOCK_THRESHOLD;
+  document.getElementById('dead-stock-caption').textContent = `Products with no sale in the last ${DEAD_STOCK_DAYS}+ days (or never sold), by value tied up`;
+
+  // payment split
+  const paySum = paymentTotals.cash + paymentTotals.online;
+  renderBarList('payment-split-bars', [
+    {label:'Cash', value:paymentTotals.cash, max:paySum || 1, cls:''},
+    {label:'Online', value:paymentTotals.online, max:paySum || 1, cls:'online'}
+  ], v=>fmt(v));
+
+  // weekday pattern
+  const weekdayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const weekdayMax = Math.max(1, ...weekdayTotals);
+  renderBarList('weekday-bars', weekdayLabels.map((label,i)=>({label, value:weekdayTotals[i], max:weekdayMax})), v=>fmt(v));
+
+  // daily sales, last 30 days, most recent first
+  const dailyRows = [];
+  const today = new Date();
+  for(let i=0;i<30;i++){
+    const d = new Date(today);
+    d.setDate(d.getDate()-i);
+    const key = d.toISOString().slice(0,10);
+    dailyRows.push({label: d.toLocaleDateString('en-IN', {day:'2-digit', month:'short'}), value: dailyTotals[key]||0});
+  }
+  const dailyMax = Math.max(1, ...dailyRows.map(r=>r.value));
+  renderBarList('daily-sales-bars', dailyRows.map(r=>({label:r.label, value:r.value, max:dailyMax})), v=>fmt(v));
 
   // fast moving
   const fastMoving = Object.entries(volumeMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
@@ -1632,19 +1770,91 @@ function renderInsights(){
     name: b.description, code: b.code, val: fmt(b.stockValue) + ' tied up · ' + b.sold + ' sold'
   })));
 
+  // low stock & out of stock
+  const lowStock = DATA.products.filter(p=>p.quantity>0 && p.quantity<=LOW_STOCK_THRESHOLD).sort((a,b)=>a.quantity-b.quantity).slice(0,10);
+  renderRankListRaw('list-low-stock', lowStock.map(p=>({name:p.description, code:p.code, val: p.quantity + ' left'})));
+
+  const outOfStock = DATA.products.filter(p=>p.quantity<=0).slice(0,10);
+  renderRankListRaw('list-out-of-stock', outOfStock.map(p=>({name:p.description, code:p.code, val: 'Restock'})));
+
+  // dead stock — no sale in DEAD_STOCK_DAYS+ days, or never sold, only where stock is actually held
+  const now = new Date();
+  const deadStock = DATA.products
+    .filter(p=>p.quantity>0)
+    .map(p=>{
+      const lastSale = lastSaleMap[p.code];
+      const daysSince = lastSale ? Math.floor((now - lastSale) / 86400000) : null;
+      return {code:p.code, description:p.description, stockValue: p.quantity*p.buyingPrice, daysSince};
+    })
+    .filter(p=> p.daysSince === null || p.daysSince >= DEAD_STOCK_DAYS)
+    .sort((a,b)=> b.stockValue - a.stockValue)
+    .slice(0,10);
+  renderRankListRaw('list-dead-stock', deadStock.map(p=>({
+    name: p.description, code: p.code,
+    val: (p.daysSince === null ? 'Never sold' : p.daysSince + ' days ago') + ' · ' + fmt(p.stockValue)
+  })));
+
+  // stock running out soonest — needs sales history to estimate a daily rate
+  let spanDays = 1;
+  if(firstBillDate && lastBillDate){
+    spanDays = Math.max(1, Math.round((lastBillDate - firstBillDate) / 86400000) + 1);
+  }
+  const runway = DATA.products
+    .filter(p=>p.quantity>0 && (volumeMap[p.code]||0) > 0)
+    .map(p=>{
+      const dailyRate = volumeMap[p.code] / spanDays;
+      const daysLeft = dailyRate > 0 ? (p.quantity / dailyRate) : Infinity;
+      return {code:p.code, description:p.description, daysLeft};
+    })
+    .sort((a,b)=> a.daysLeft - b.daysLeft)
+    .slice(0,10);
+  renderRankListRaw('list-stock-runway', runway.map(p=>({
+    name: p.description, code: p.code, val: '~' + Math.max(0, Math.round(p.daysLeft)) + ' days left'
+  })));
+
   // monthly table, latest first
   const monthlyTbody = document.getElementById('monthly-tbody');
   const monthKeys = Object.keys(monthly).sort().reverse();
   if(monthKeys.length === 0){
-    monthlyTbody.innerHTML = '<tr class="empty-row"><td colspan="4">No sales recorded yet.</td></tr>';
+    monthlyTbody.innerHTML = '<tr class="empty-row"><td colspan="5">No sales recorded yet.</td></tr>';
   } else {
     monthlyTbody.innerHTML = monthKeys.map(key=>{
       const m = monthly[key];
       const profit = m.sales - m.cost;
       const label = new Date(key+'-01').toLocaleDateString('en-IN', {year:'numeric', month:'long'});
-      return `<tr><td class="desc">${label}</td><td>${m.cost.toFixed(2)}</td><td>${m.sales.toFixed(2)}</td><td>${profit.toFixed(2)}</td></tr>`;
+      return `<tr><td class="desc">${label}</td><td>${m.bills}</td><td>${m.cost.toFixed(2)}</td><td>${m.sales.toFixed(2)}</td><td>${profit.toFixed(2)}</td></tr>`;
     }).join('');
   }
+
+  // customer analysis
+  const customerEntries = Object.entries(customerMap);
+  const distinctCustomers = customerEntries.length;
+  const repeatCustomers = customerEntries.filter(([,v])=>v.visits>1).length;
+  document.getElementById('kpi-distinct-customers').textContent = distinctCustomers;
+  document.getElementById('kpi-repeat-customers').textContent = repeatCustomers;
+  document.getElementById('kpi-repeat-rate').textContent = (distinctCustomers ? (repeatCustomers/distinctCustomers*100) : 0).toFixed(1) + '%';
+
+  const topCustomers = customerEntries.sort((a,b)=>b[1].spend-a[1].spend).slice(0,10);
+  renderRankListRaw('list-top-customers', topCustomers.map(([mobile,v])=>({
+    name: mobile, code: v.visits + (v.visits===1?' visit':' visits'), val: fmt(v.spend)
+  })));
+}
+
+function renderBarList(elId, rows, formatVal){
+  const el = document.getElementById(elId);
+  if(!rows || rows.length === 0){
+    el.innerHTML = '<div style="text-align:center; color:var(--ink-soft); font-style:italic; font-size:12.5px;">Not enough data yet</div>';
+    return;
+  }
+  el.innerHTML = rows.map(r=>{
+    const pct = r.max > 0 ? Math.max(r.value>0?2:0, Math.round((r.value/r.max)*100)) : 0;
+    const cls = r.cls ? ' ' + r.cls : '';
+    return `<div class="bar-row${cls}">
+      <span class="bar-label">${escapeHtml(r.label)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <span class="bar-value">${formatVal(r.value)}</span>
+    </div>`;
+  }).join('');
 }
 
 function renderRankList(elId, entries, mapFn){
