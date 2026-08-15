@@ -334,6 +334,33 @@
   #printable-bill.receipt-mode.receipt-80 .stamp{ font-size:10px;
   }
 
+  /* Stickers */
+  #printable-stickers{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .sticker-item{
+    width:180px;
+    height:100px;
+    border:1.5px dashed var(--ink);
+    border-radius:6px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    padding:8px;
+    font-family:'IBM Plex Mono', monospace;
+    text-align:center;
+    background:#fff;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .sticker-name{ font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.03em; line-height:1.25; }
+  .sticker-code{ font-size:11px; color:var(--ink-soft); }
+  .sticker-price{ font-size:16px; font-weight:700; }
+
   /* Insights */
   .kpi-row{ display:grid; grid-template-columns: repeat(3,1fr); gap:16px; margin-bottom:26px; }
   .kpi-row-4{ grid-template-columns: repeat(4,1fr); }
@@ -400,6 +427,13 @@
       width: 80mm; max-width:80mm; padding:8px 6px 6px;
     }
     .bill-actions, .receipt-mode-row{ display:none; }
+
+    #printable-stickers, #printable-stickers *{ visibility:visible; }
+    #printable-stickers{
+      position:absolute; top:0; left:0; width:100%;
+      display:flex; flex-wrap:wrap; gap:6mm; padding:6mm; margin:0;
+    }
+    .sticker-item{ border-color:#000; }
   }
 
   @media (max-width: 900px){
@@ -536,6 +570,7 @@
 </div>
 
 <div class="app" id="app-root" style="display:none;">
+  <datalist id="product-datalist"></datalist>
   <div class="rail">
     <div class="brand">Ledger<small>Shop Manager</small></div>
     <button class="tab-btn active" data-tab="inventory" id="rail-inventory"><span class="num">01</span>Inventory</button>
@@ -584,6 +619,35 @@
           </thead>
           <tbody id="product-tbody"></tbody>
         </table>
+        </div>
+      </div>
+
+      <div class="card" id="sticker-panel" style="display:none;">
+        <h2>Print stickers</h2>
+        <p class="caption" style="margin-bottom:16px;">Each sticker shows the item's code and selling price. Quantity defaults to the item's current stock — change it if you need a different number.</p>
+        <div class="grid g4">
+          <div class="field" style="grid-column: span 2;">
+            <label>Product</label>
+            <input type="text" id="sticker-product-input" list="product-datalist" placeholder="Type code or name..." oninput="handleStickerProductInput(this.value)">
+          </div>
+          <div class="field">
+            <label>Quantity to print</label>
+            <input type="number" min="1" id="sticker-qty-input" placeholder="1">
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button type="button" class="btn red small" id="sticker-generate-btn" style="width:100%;">Generate preview</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="printable-stickers-wrap" style="display:none;">
+        <h2>Sticker preview</h2>
+        <p class="caption" style="margin-bottom:16px;">Load your label/sticker sheet and set the matching paper size in the print dialog before printing — sheet sizes vary, so adjust margins there if stickers don't line up.</p>
+        <div id="printable-stickers"></div>
+        <div class="bill-actions" style="margin-top:20px;">
+          <button class="btn red" id="sticker-print-btn">Print stickers</button>
+          <button class="btn secondary" id="sticker-close-btn">Close preview</button>
         </div>
       </div>
     </section>
@@ -642,7 +706,6 @@
           <div class="field" id="cash-field-received"><label>Amount received (₹)</label><input type="number" min="0" step="0.01" id="bill-amount-received" placeholder="Optional"></div>
           <div class="field" id="cash-field-change"><label>Change to return</label><input type="text" id="bill-change-return" placeholder="—" readonly></div>
         </div>
-        <datalist id="product-datalist"></datalist>
         <div class="table-scroll">
         <table class="bill-items-table">
           <thead>
@@ -1274,6 +1337,7 @@ function renderProducts(){
       <td>${stockValue.toFixed(2)}</td>
       <td class="row-actions">
         <button onclick="editProduct('${escapeAttr(p.code)}')">Edit</button>
+        <button onclick="openStickerPanel('${escapeAttr(p.code)}')">Stickers</button>
         <button onclick="deleteProduct('${escapeAttr(p.code)}')">Delete</button>
       </td>`;
     tbody.appendChild(tr);
@@ -1283,6 +1347,63 @@ document.getElementById('inv-search').addEventListener('input', renderProducts);
 
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s){ return String(s).replace(/'/g, "\\'"); }
+
+/* ---------- Stickers ---------- */
+function openStickerPanel(code){
+  document.getElementById('sticker-panel').style.display = 'block';
+  const product = DATA.products.find(p=>p.code===code);
+  if(product){
+    document.getElementById('sticker-product-input').value = product.code + ' — ' + product.description;
+    document.getElementById('sticker-qty-input').value = product.quantity > 0 ? product.quantity : 1;
+  }
+  document.getElementById('sticker-panel').scrollIntoView({behavior:'smooth'});
+}
+window.openStickerPanel = openStickerPanel;
+
+function findStickerProduct(){
+  const value = document.getElementById('sticker-product-input').value;
+  const candidate = value.split(' — ')[0].trim();
+  return DATA.products.find(p=>p.code.toLowerCase() === candidate.toLowerCase());
+}
+
+function handleStickerProductInput(value){
+  const candidate = value.split(' — ')[0].trim();
+  const product = DATA.products.find(p=>p.code.toLowerCase() === candidate.toLowerCase());
+  if(product){
+    document.getElementById('sticker-qty-input').value = product.quantity > 0 ? product.quantity : 1;
+  }
+}
+window.handleStickerProductInput = handleStickerProductInput;
+
+document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
+  const product = findStickerProduct();
+  if(!product){
+    showToast('Select a valid product first');
+    return;
+  }
+  const qty = parseInt(document.getElementById('sticker-qty-input').value, 10);
+  if(!qty || qty < 1){
+    showToast('Enter a valid quantity');
+    return;
+  }
+  if(qty > 300 && !confirm(`Print ${qty} stickers? That's a lot for one go — continue?`)){
+    return;
+  }
+  const stickerHtml = `
+    <div class="sticker-item">
+      <div class="sticker-name">${escapeHtml(product.description)}</div>
+      <div class="sticker-code">${escapeHtml(product.code)}</div>
+      <div class="sticker-price">₹${product.sellingPrice.toFixed(2)}</div>
+    </div>`;
+  document.getElementById('printable-stickers').innerHTML = stickerHtml.repeat(qty);
+  document.getElementById('printable-stickers-wrap').style.display = 'block';
+  document.getElementById('printable-stickers-wrap').scrollIntoView({behavior:'smooth'});
+});
+
+document.getElementById('sticker-print-btn').addEventListener('click', ()=> window.print());
+document.getElementById('sticker-close-btn').addEventListener('click', ()=>{
+  document.getElementById('printable-stickers-wrap').style.display = 'none';
+});
 
 /* ---------- Billing ---------- */
 document.getElementById('s-save-btn').addEventListener('click', ()=>{
