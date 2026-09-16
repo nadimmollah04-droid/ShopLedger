@@ -334,31 +334,40 @@
   #printable-bill.receipt-mode.receipt-80 .stamp{ font-size:10px;
   }
 
-  /* Stickers */
-  #printable-stickers{
-    display:flex;
-    flex-wrap:wrap;
-    gap:10px;
+  /* Stickers — 4in x 6in page, 8 stickers per page at 2in x 1.5in each */
+  #printable-stickers{ display:flex; flex-direction:column; gap:16px; align-items:center; }
+  .sticker-page{
+    width:4in;
+    height:6in;
+    background:#fff;
+    display:grid;
+    grid-template-columns: repeat(2, 2in);
+    grid-template-rows: repeat(4, 1.5in);
+    border:1px solid var(--rule);
   }
   .sticker-item{
-    width:180px;
-    height:100px;
-    border:1.5px dashed var(--ink);
-    border-radius:6px;
+    width:2in;
+    height:1.5in;
+    border:1px dashed var(--ink);
+    box-sizing:border-box;
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    gap:4px;
-    padding:8px;
+    gap:2px;
+    padding:0.08in 0.1in;
     font-family:'IBM Plex Mono', monospace;
     text-align:center;
-    background:#fff;
+    overflow:hidden;
     page-break-inside: avoid;
     break-inside: avoid;
   }
-  .sticker-name{ font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.03em; line-height:1.25; }
-  .sticker-code{ font-size:11px; color:var(--ink-soft); }
+  .sticker-name{
+    font-weight:700; font-size:10.5px; text-transform:uppercase; letter-spacing:0.02em;
+    line-height:1.2; max-width:100%; overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .sticker-barcode-svg{ width:1.7in; height:0.5in; }
   .sticker-price{ font-size:16px; font-weight:700; }
 
   /* Insights */
@@ -430,9 +439,13 @@
 
     #printable-stickers, #printable-stickers *{ visibility:visible; }
     #printable-stickers{
-      position:absolute; top:0; left:0; width:100%;
-      display:flex; flex-wrap:wrap; gap:6mm; padding:6mm; margin:0;
+      position:absolute; top:0; left:0; width:auto;
+      display:block; gap:0; padding:0; margin:0;
     }
+    .sticker-page{
+      border:none; margin:0; page-break-after: always; break-after: page;
+    }
+    .sticker-page:last-child{ page-break-after: auto; break-after: auto; }
     .sticker-item{ border-color:#000; }
   }
 
@@ -545,6 +558,7 @@
   .logout-btn:hover{ color: var(--red); }
   .rail{ display:flex; flex-direction:column; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.3/JsBarcode.all.min.js"></script>
 </head>
 <body>
 
@@ -694,6 +708,10 @@
 
       <div class="card">
         <h2>New bill</h2>
+        <div class="field" style="margin-bottom:18px; max-width:420px;">
+          <label>Scan barcode <span style="text-transform:none; font-weight:400;">(adds or increments the item instantly)</span></label>
+          <input type="text" id="bill-barcode-scan" placeholder="Click here, then scan an item" autocomplete="off">
+        </div>
         <div class="grid g4" style="margin-bottom:18px;">
           <div class="field"><label>Customer mobile number</label><input id="bill-customer-mobile" placeholder="e.g. 98765 43210" inputmode="tel"></div>
           <div class="field">
@@ -1168,6 +1186,10 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.classList.add('active');
     document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
     if(btn.dataset.tab === 'insights') renderInsights();
+    if(btn.dataset.tab === 'billing'){
+      const scanField = document.getElementById('bill-barcode-scan');
+      if(scanField) setTimeout(()=> scanField.focus(), 50);
+    }
   });
 });
 
@@ -1219,6 +1241,8 @@ function applyRoleVisibility(){
     document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
     document.getElementById('rail-billing').classList.add('active');
     document.getElementById('tab-billing').classList.add('active');
+    const scanField = document.getElementById('bill-barcode-scan');
+    if(scanField) setTimeout(()=> scanField.focus(), 50);
   }
 }
 
@@ -1375,6 +1399,8 @@ function handleStickerProductInput(value){
 }
 window.handleStickerProductInput = handleStickerProductInput;
 
+const STICKERS_PER_PAGE = 8; // 2 columns x 4 rows of 2in x 1.5in on a 4in x 6in sheet
+
 document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
   const product = findStickerProduct();
   if(!product){
@@ -1389,18 +1415,57 @@ document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
   if(qty > 300 && !confirm(`Print ${qty} stickers? That's a lot for one go — continue?`)){
     return;
   }
-  const stickerHtml = `
+
+  const svgIdPrefix = 'sticker-barcode-';
+  const stickerHtml = (idx)=>`
     <div class="sticker-item">
       <div class="sticker-name">${escapeHtml(product.description)}</div>
-      <div class="sticker-code">${escapeHtml(product.code)}</div>
+      <svg class="sticker-barcode-svg" id="${svgIdPrefix}${idx}"></svg>
       <div class="sticker-price">₹${product.sellingPrice.toFixed(2)}</div>
     </div>`;
-  document.getElementById('printable-stickers').innerHTML = stickerHtml.repeat(qty);
+
+  const pageCount = Math.ceil(qty / STICKERS_PER_PAGE);
+  let html = '';
+  let idx = 0;
+  for(let page=0; page<pageCount; page++){
+    const onThisPage = Math.min(STICKERS_PER_PAGE, qty - idx);
+    let pageHtml = '';
+    for(let i=0; i<onThisPage; i++){
+      pageHtml += stickerHtml(idx);
+      idx++;
+    }
+    html += `<div class="sticker-page">${pageHtml}</div>`;
+  }
+  document.getElementById('printable-stickers').innerHTML = html;
+
+  // Render an actual scannable barcode into each placeholder svg
+  if(typeof JsBarcode === 'function'){
+    for(let i=0; i<qty; i++){
+      try{
+        JsBarcode('#' + svgIdPrefix + i, product.code, {
+          format: 'CODE128',
+          width: 1.4,
+          height: 34,
+          fontSize: 11,
+          margin: 2,
+          displayValue: true
+        });
+      }catch(e){
+        console.error('Barcode render failed for', product.code, e);
+      }
+    }
+  } else {
+    showToast('Barcode library did not load — check your internet connection and try again');
+  }
+
   document.getElementById('printable-stickers-wrap').style.display = 'block';
   document.getElementById('printable-stickers-wrap').scrollIntoView({behavior:'smooth'});
 });
 
-document.getElementById('sticker-print-btn').addEventListener('click', ()=> window.print());
+document.getElementById('sticker-print-btn').addEventListener('click', ()=>{
+  setPrintPageStyle('4in 6in', '0');
+  window.print();
+});
 document.getElementById('sticker-close-btn').addEventListener('click', ()=>{
   document.getElementById('printable-stickers-wrap').style.display = 'none';
 });
@@ -1487,6 +1552,30 @@ function addBillRow(){
   renderBillRows();
 }
 document.getElementById('add-bill-row').addEventListener('click', addBillRow);
+
+document.getElementById('bill-barcode-scan').addEventListener('keydown', function(e){
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  const raw = this.value.trim();
+  this.value = '';
+  if(!raw) return;
+  const product = DATA.products.find(p=>p.code.toLowerCase() === raw.toLowerCase());
+  if(!product){
+    showToast('No product found for scanned code: ' + raw);
+    return;
+  }
+  const existingIdx = currentBillRows.findIndex(r=>r.code === product.code);
+  let newQty;
+  if(existingIdx > -1){
+    currentBillRows[existingIdx].qty = (currentBillRows[existingIdx].qty||0) + 1;
+    newQty = currentBillRows[existingIdx].qty;
+  } else {
+    currentBillRows.push({code: product.code, qty: 1, rawInput: product.code + ' — ' + product.description});
+    newQty = 1;
+  }
+  renderBillRows();
+  showToast(`${product.description} — qty ${newQty}`);
+});
 
 function renderBillProductOptions(){
   renderProductDatalist();
@@ -1708,16 +1797,15 @@ function showPrintableBill(bill){
   document.getElementById('printable-bill-wrap').scrollIntoView({behavior:'smooth'});
 }
 
-function setReceiptPageStyle(mode){
-  let styleEl = document.getElementById('receipt-page-style');
-  if(mode === '58mm' || mode === '80mm'){
+function setPrintPageStyle(sizeValue, margin){
+  let styleEl = document.getElementById('dynamic-print-page-style');
+  if(sizeValue){
     if(!styleEl){
       styleEl = document.createElement('style');
-      styleEl.id = 'receipt-page-style';
+      styleEl.id = 'dynamic-print-page-style';
       document.head.appendChild(styleEl);
     }
-    const width = mode === '80mm' ? '80mm' : '58mm';
-    styleEl.textContent = '@page { size: ' + width + ' auto; margin: 2mm; }';
+    styleEl.textContent = '@page { size: ' + sizeValue + '; margin: ' + (margin || '0') + '; }';
   } else if(styleEl){
     styleEl.remove();
   }
@@ -1738,10 +1826,15 @@ function applyReceiptModePref(){
   document.querySelectorAll('#print-mode-toggle button').forEach(b=>{
     b.classList.toggle('active', b.dataset.mode === mode);
   });
-  setReceiptPageStyle(mode);
+  if(mode === '58mm') setPrintPageStyle('58mm auto', '2mm');
+  else if(mode === '80mm') setPrintPageStyle('80mm auto', '2mm');
+  else setPrintPageStyle(null);
 }
 
-document.getElementById('print-bill-btn').addEventListener('click', ()=> window.print());
+document.getElementById('print-bill-btn').addEventListener('click', ()=>{
+  applyReceiptModePref(); // make sure the bill's page size wins even if stickers were printed since
+  window.print();
+});
 document.getElementById('new-bill-btn').addEventListener('click', ()=>{
   document.getElementById('printable-bill-wrap').style.display = 'none';
 });
