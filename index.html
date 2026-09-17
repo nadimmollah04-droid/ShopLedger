@@ -334,25 +334,14 @@
   #printable-bill.receipt-mode.receipt-80 .stamp{ font-size:10px;
   }
 
-  /* Stickers — continuous 4in-wide roll, 2 columns of 2in x 2in labels,
-     2 stickers stacked inside each physical 2in x 2in label */
+  /* Stickers — continuous 4in-wide roll, 6 slim stickers side by side per row */
   #printable-stickers{ display:flex; flex-direction:column; align-items:center; }
   .sticker-row{
     width:4in;
     display:flex;
   }
-  .sticker-box{
-    width:2in;
-    height:2in;
-    box-sizing:border-box;
-    display:flex;
-    flex-direction:column;
-    background:#fff;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-  .sticker-half{
-    width:100%;
+  .sticker-item{
+    width: calc(4in / 6);
     height:1in;
     box-sizing:border-box;
     border:1px dashed var(--ink);
@@ -361,19 +350,22 @@
     align-items:center;
     justify-content:center;
     gap:1px;
-    padding:0.04in 0.08in;
+    padding:0.02in 0.03in;
     font-family:'IBM Plex Mono', monospace;
     text-align:center;
     overflow:hidden;
+    background:#fff;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
-  .sticker-half.empty{ border-style:solid; border-color:var(--rule); }
+  .sticker-item.empty{ border-style:solid; border-color:var(--rule); }
   .sticker-name{
-    font-weight:700; font-size:9px; text-transform:uppercase; letter-spacing:0.02em;
-    line-height:1.15; max-width:100%; overflow:hidden; text-overflow:ellipsis;
+    font-weight:700; font-size:6.5px; text-transform:uppercase; letter-spacing:0.01em;
+    line-height:1.1; max-width:100%; overflow:hidden; text-overflow:ellipsis;
     white-space:nowrap;
   }
-  .sticker-barcode-svg{ width:1.75in; height:0.42in; }
-  .sticker-price{ font-size:13px; font-weight:700; }
+  .sticker-barcode-svg{ width:0.6in; height:0.32in; }
+  .sticker-price{ font-size:9px; font-weight:700; }
 
   /* Insights */
   .kpi-row{ display:grid; grid-template-columns: repeat(3,1fr); gap:16px; margin-bottom:26px; }
@@ -448,8 +440,8 @@
       display:block; gap:0; padding:0; margin:0;
     }
     .sticker-row{ margin:0; }
-    .sticker-half{ border-color:#000; }
-    .sticker-half.empty{ border-color:#fff; }
+    .sticker-item{ border-color:#000; }
+    .sticker-item.empty{ border-color:#fff; }
   }
 
   @media (max-width: 900px){
@@ -660,7 +652,7 @@
 
       <div class="card" id="printable-stickers-wrap" style="display:none;">
         <h2>Sticker preview</h2>
-        <p class="caption" style="margin-bottom:16px;">Laid out for a continuous 4" roll of 2"×2" labels, 2 across — each physical label holds 2 stickers stacked on top of each other. Set your print dialog's paper width to 4" (or your label/receipt roll option) before printing.</p>
+        <p class="caption" style="margin-bottom:16px;">Laid out for a continuous 4" wide roll, 6 slim stickers side by side per row. Set your print dialog's paper width to 4" (or your label/receipt roll option) before printing. At this width the barcodes are narrow — test-scan a printed sample before running a large batch.</p>
         <div id="printable-stickers"></div>
         <div class="bill-actions" style="margin-top:20px;">
           <button class="btn red" id="sticker-print-btn">Print stickers</button>
@@ -1402,8 +1394,7 @@ function handleStickerProductInput(value){
 }
 window.handleStickerProductInput = handleStickerProductInput;
 
-const STICKERS_PER_BOX = 2;  // 2 stickers stacked inside each physical 2in x 2in label
-const BOXES_PER_ROW = 2;     // 2 labels across the 4in roll width
+const STICKERS_PER_ROW = 6;  // 6 slim stickers side by side across the 4in roll width
 
 document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
   const product = findStickerProduct();
@@ -1421,35 +1412,25 @@ document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
   }
 
   const svgIdPrefix = 'sticker-barcode-';
-  const stickerHalfHtml = (idx)=>`
-    <div class="sticker-half">
+  const stickerItemHtml = (idx)=>`
+    <div class="sticker-item">
       <div class="sticker-name">${escapeHtml(product.description)}</div>
       <svg class="sticker-barcode-svg" id="${svgIdPrefix}${idx}"></svg>
       <div class="sticker-price">₹${product.sellingPrice.toFixed(2)}</div>
     </div>`;
 
-  const boxesNeeded = Math.ceil(qty / STICKERS_PER_BOX);
-  const rowsNeeded = Math.ceil(boxesNeeded / BOXES_PER_ROW);
+  const rowsNeeded = Math.ceil(qty / STICKERS_PER_ROW);
   let html = '';
   let idx = 0;
   for(let row=0; row<rowsNeeded; row++){
     let rowHtml = '';
-    for(let col=0; col<BOXES_PER_ROW; col++){
-      const boxIndex = row*BOXES_PER_ROW + col;
-      if(boxIndex >= boxesNeeded){
-        rowHtml += '<div class="sticker-box"></div>';
-        continue;
+    for(let col=0; col<STICKERS_PER_ROW; col++){
+      if(idx < qty){
+        rowHtml += stickerItemHtml(idx);
+        idx++;
+      } else {
+        rowHtml += '<div class="sticker-item empty"></div>';
       }
-      let boxHtml = '';
-      for(let half=0; half<STICKERS_PER_BOX; half++){
-        if(idx < qty){
-          boxHtml += stickerHalfHtml(idx);
-          idx++;
-        } else {
-          boxHtml += '<div class="sticker-half empty"></div>';
-        }
-      }
-      rowHtml += `<div class="sticker-box">${boxHtml}</div>`;
     }
     html += `<div class="sticker-row">${rowHtml}</div>`;
   }
@@ -1461,10 +1442,10 @@ document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
       try{
         JsBarcode('#' + svgIdPrefix + i, product.code, {
           format: 'CODE128',
-          width: 1.2,
-          height: 26,
-          fontSize: 9,
-          margin: 2,
+          width: 0.7,
+          height: 18,
+          fontSize: 6,
+          margin: 1,
           displayValue: true
         });
       }catch(e){
