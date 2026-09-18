@@ -1395,6 +1395,8 @@ function handleStickerProductInput(value){
 window.handleStickerProductInput = handleStickerProductInput;
 
 const STICKERS_PER_ROW = 4;  // 4 stickers side by side across the 4in roll width
+const STICKER_ROW_HEIGHT_IN = 1; // each sticker row is 1in tall
+let stickerSheetHeightIn = 0;
 
 document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
   const product = findStickerProduct();
@@ -1420,6 +1422,7 @@ document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
     </div>`;
 
   const rowsNeeded = Math.ceil(qty / STICKERS_PER_ROW);
+  stickerSheetHeightIn = rowsNeeded * STICKER_ROW_HEIGHT_IN;
   let html = '';
   let idx = 0;
   for(let row=0; row<rowsNeeded; row++){
@@ -1461,7 +1464,11 @@ document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
 });
 
 document.getElementById('sticker-print-btn').addEventListener('click', ()=>{
-  setPrintPageStyle('4in auto', '0');
+  // Use the exact computed height instead of "auto" — "auto" isn't valid CSS page
+  // height and gets silently replaced with a short default by most print engines,
+  // which is what was chopping one continuous sticker run into several pages.
+  const heightIn = (stickerSheetHeightIn > 0 ? stickerSheetHeightIn : STICKER_ROW_HEIGHT_IN) + 0.02;
+  setPrintPageStyle('4in ' + heightIn.toFixed(2) + 'in', '0');
   window.print();
 });
 document.getElementById('sticker-close-btn').addEventListener('click', ()=>{
@@ -1824,13 +1831,27 @@ function applyReceiptModePref(){
   document.querySelectorAll('#print-mode-toggle button').forEach(b=>{
     b.classList.toggle('active', b.dataset.mode === mode);
   });
-  if(mode === '58mm') setPrintPageStyle('58mm auto', '2mm');
-  else if(mode === '80mm') setPrintPageStyle('80mm auto', '2mm');
-  else setPrintPageStyle(null);
+}
+
+function applyPrintPageSizeForBill(){
+  // Measures the bill's actual rendered height and sets an explicit page height —
+  // "auto" isn't valid CSS page height and gets silently replaced with a short
+  // default by most print engines, which can chop one bill into several pages.
+  const mode = DATA.printPrefs.mode || 'standard';
+  if(mode === '58mm' || mode === '80mm'){
+    const widthMm = mode === '80mm' ? 80 : 58;
+    const billEl = document.getElementById('printable-bill');
+    const heightPx = billEl.scrollHeight || billEl.getBoundingClientRect().height || 0;
+    const heightMm = (heightPx * 25.4 / 96) + 6; // small buffer so nothing clips at the edge
+    setPrintPageStyle(widthMm + 'mm ' + heightMm.toFixed(2) + 'mm', '2mm');
+  } else {
+    setPrintPageStyle(null);
+  }
 }
 
 document.getElementById('print-bill-btn').addEventListener('click', ()=>{
-  applyReceiptModePref(); // make sure the bill's page size wins even if stickers were printed since
+  applyReceiptModePref(); // make sure the bill's mode/classes win even if stickers were printed since
+  applyPrintPageSizeForBill();
   window.print();
 });
 document.getElementById('new-bill-btn').addEventListener('click', ()=>{
