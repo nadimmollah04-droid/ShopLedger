@@ -439,7 +439,10 @@
       position:absolute; top:0; left:0; width:auto;
       display:block; gap:0; padding:0; margin:0;
     }
-    .sticker-row{ margin:0; }
+    .sticker-row{
+      margin:0; page-break-after: always; break-after: page;
+    }
+    .sticker-row:last-child{ page-break-after: auto; break-after: auto; }
     .sticker-item{ border-color:#000; }
     .sticker-item.empty{ border-color:#fff; }
   }
@@ -652,7 +655,7 @@
 
       <div class="card" id="printable-stickers-wrap" style="display:none;">
         <h2>Sticker preview</h2>
-        <p class="caption" style="margin-bottom:16px;">Laid out for a continuous 4" wide roll, 3 stickers side by side per row (~1.33" each). Set your print dialog's paper width to 4" before printing. If your printer still adds blank margins on both sides regardless of paper width, check for a "borderless" or "full bleed" print option in the dialog.</p>
+        <p class="caption" style="margin-bottom:16px;">Laid out at 4" wide, 3 stickers side by side per row (~1.33" each). This uses whatever paper size and page format is already selected in your print dialog/printer driver — each row of 3 prints as its own page, matching how your label printer advances one label at a time. If sticker size or spacing still looks off, check your driver's label size/gap settings rather than the print dialog's paper picker.</p>
         <div id="printable-stickers"></div>
         <div class="bill-actions" style="margin-top:20px;">
           <button class="btn red" id="sticker-print-btn">Print stickers</button>
@@ -1395,8 +1398,6 @@ function handleStickerProductInput(value){
 window.handleStickerProductInput = handleStickerProductInput;
 
 const STICKERS_PER_ROW = 3;  // 3 stickers side by side across the 4in roll width
-const STICKER_ROW_HEIGHT_IN = 1; // each sticker row is 1in tall
-let stickerSheetHeightIn = 0;
 
 document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
   const product = findStickerProduct();
@@ -1422,7 +1423,6 @@ document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
     </div>`;
 
   const rowsNeeded = Math.ceil(qty / STICKERS_PER_ROW);
-  stickerSheetHeightIn = rowsNeeded * STICKER_ROW_HEIGHT_IN;
   let html = '';
   let idx = 0;
   for(let row=0; row<rowsNeeded; row++){
@@ -1464,11 +1464,14 @@ document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
 });
 
 document.getElementById('sticker-print-btn').addEventListener('click', ()=>{
-  // Use the exact computed height instead of "auto" — "auto" isn't valid CSS page
-  // height and gets silently replaced with a short default by most print engines,
-  // which is what was chopping one continuous sticker run into several pages.
-  const heightIn = (stickerSheetHeightIn > 0 ? stickerSheetHeightIn : STICKER_ROW_HEIGHT_IN) + 0.02;
-  setPrintPageStyle('4in ' + heightIn.toFixed(2) + 'in', '0');
+  // Don't force a custom @page size here — on some label-printer drivers, a
+  // computed multi-row page height fights against the driver's own fixed
+  // per-label page format and makes it auto-shrink/rotate content to fit.
+  // Clearing any leftover dynamic page style and printing with whatever
+  // paper size is already selected/default in the print dialog avoids that;
+  // each row paginates as its own page via CSS page-break-after instead,
+  // matching how the printer expects one page per printed label.
+  setPrintPageStyle(null);
   window.print();
 });
 document.getElementById('sticker-close-btn').addEventListener('click', ()=>{
