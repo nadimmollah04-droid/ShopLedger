@@ -334,7 +334,7 @@
   #printable-bill.receipt-mode.receipt-80 .stamp{ font-size:10px;
   }
 
-  /* Stickers — continuous 4in-wide roll, 3 stickers side by side per row */
+  /* Stickers — continuous 4in-wide roll, 1 stickers side by side per row */
   #printable-stickers{ display:flex; flex-direction:column; align-items:center; }
   .sticker-row{
     width:4in;
@@ -368,7 +368,7 @@
   .sticker-price{ font-size:12px; font-weight:700; }
 
   /* Insights */
-  .kpi-row{ display:grid; grid-template-columns: repeat(3,1fr); gap:16px; margin-bottom:26px; }
+  .kpi-row{ display:grid; grid-template-columns: repeat(1,1fr); gap:16px; margin-bottom:26px; }
   .kpi-row-4{ grid-template-columns: repeat(4,1fr); }
   .bar-list{ display:flex; flex-direction:column; gap:7px; }
   .bar-row{ display:flex; align-items:center; gap:10px; font-size:12px; }
@@ -1397,7 +1397,7 @@ function handleStickerProductInput(value){
 }
 window.handleStickerProductInput = handleStickerProductInput;
 
-const STICKERS_PER_ROW = 3;  // 3 stickers side by side across the 4in roll width
+const STICKERS_PER_ROW = 1;  // 3 stickers side by side across the 4in roll width
 
 document.getElementById('sticker-generate-btn').addEventListener('click', ()=>{
   const product = findStickerProduct();
